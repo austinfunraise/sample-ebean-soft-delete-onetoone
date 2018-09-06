@@ -1,6 +1,7 @@
 package org.example.domain;
 
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assert.assertThat;
 
@@ -13,7 +14,7 @@ public class SoftDeleteTest {
      * Build a one-to-one relationship with a parent to a child
      */
     @Test
-    public void testSoftDelete() {
+    public void testSoftDelete_refreshByRequery() {
         // Insert + link records
         Parent parent = new Parent();
         parent.save();
@@ -23,9 +24,27 @@ public class SoftDeleteTest {
 
         verifyBeforeDelete(parent, child);
 
-        Ebean.delete(child);
+        Ebean.delete(parent);
 
-        verifyAfterDelete(parent, child);
+        Child refreshedChild = Child.find.byId(child.getId());
+        verifyAfterDelete(refreshedChild);
+    }
+
+    @Test
+    public void testSoftDelete_refreshByRefreshMethod() {
+        // Insert + link records
+        Parent parent = new Parent();
+        parent.save();
+
+        Child child = new Child(parent);
+        child.save();
+
+        verifyBeforeDelete(parent, child);
+
+        Ebean.delete(parent);
+
+        child.refresh();
+        verifyAfterDelete(child);
     }
 
     private void verifyBeforeDelete(Parent parent, Child child) {
@@ -40,16 +59,18 @@ public class SoftDeleteTest {
         );
     }
 
-    private void verifyAfterDelete(Parent parent, Child child) {
-        // After delete, finding child by id should return null
-        assertThat("Child should not be found after delete",
-            Child.find.byId(child.getId()),
-            is(nullValue())
+    private void verifyAfterDelete(Child refreshedChild) {
+
+        assertThat("Child should be found after delete",
+            refreshedChild,
+            not(nullValue())
         );
 
-        // After delete, getting linked child from parent should return null
-        assertThat("Parent should not be linked to child since child was deleted",
-            Parent.find.byId(parent.getId()).getChild(),
+        // This assert should pass
+        // But instead, child.getParent() is not null and
+        // child.getParent().isDeleted() is true
+        assertThat("Child should not load parent since parent is deleted",
+            refreshedChild.getParent(),
             is(nullValue())
         );
     }

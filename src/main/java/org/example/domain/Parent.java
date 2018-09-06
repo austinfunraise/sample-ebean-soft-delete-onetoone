@@ -20,8 +20,6 @@ public class Parent extends Model {
     private boolean deleted;
 
     @OneToOne(mappedBy = "parent")
-    //Does not work
-//    @Where(clause = "deleted=false")
     private Child child;
 
     public static Finder<Long, Parent> find = new Finder<>(Parent.class);
